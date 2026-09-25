@@ -1,18 +1,4 @@
-"""FLOP-normalized compute-savings analysis (analytical, no new training runs).
 
-The raw "backprop instances saved" metric reported in the paper only counts
-whether an instance's *backward* pass was skipped. It ignores that all four
-IES-family methods (ies_shipped/ies_alg1/tgies) forward EVERY instance every
-epoch, active or passive (consistent forward-pass discipline, common.py /
-train.py), to compute L_i^t for the mastery check -- forward cost is never
-saved, only backward+optimizer-step cost for passive instances.
-
-This script measures REAL forward-pass and forward+backward-pass FLOPs per
-architecture with torch.utils.flop_counter.FlopCounterMode (not a textbook
-2x-backward approximation), then recomputes a FLOP-normalized savings percentage
-per run from the existing results/*.csv logs (active_set_size /
-backprop_instances_this_epoch per epoch), and writes results/flop_summary.csv.
-"""
 import csv
 import glob
 import os
