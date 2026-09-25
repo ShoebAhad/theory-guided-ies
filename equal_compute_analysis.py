@@ -1,14 +1,3 @@
-"""Reviewer items 12+13: (a) accuracy at fixed compute budgets, so the central comparison
-isn't only 'accuracy vs whatever compute each method happens to land at', and (b) final-
-epoch vs best-over-training accuracy side by side. Pure post-processing of existing
-results/*.csv -- no new GPU run needed.
-
-NEXT_STEPS.md item 4: extended from the primary-cell-only exploratory pass to every cell
-where the new baselines (InfoBatch/BLS-InfoBatch/AlignPrune) actually have data: the three
-SGD-exponential/seed0 settings ResNet-18/CIFAR-10, ResNet-18/CIFAR-100, VGG-16/CIFAR-10.
-(rho_loss was cut from this session's GPU budget before it produced any results/*.csv --
-see project_tgies_experiment_matrix memory -- so it's excluded here, not silently missing.)
-"""
 import csv
 import os
 
