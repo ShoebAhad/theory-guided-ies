@@ -1,33 +1,4 @@
-"""Pretrains the frozen "irreducible loss" (IL) model that train.py's rho_loss
-method needs (Mindermann et al. 2022, "Prioritized Training on Points that are
-Learnable, Worth Learning, and Not Yet Learnt", arXiv:2206.07137).
 
-RHO-LOSS scores each training point by *reducible* loss = current training-model
-loss minus a fixed "irreducible loss" estimate from a model trained only on a
-held-out split, so noisy/mislabeled/inherently-hard points (high loss under any
-model) don't get mistaken for "not yet learnt" points worth prioritizing.
-
-Recipe (one IL model per (dataset, model architecture) pair, reused across all
-seeds of that pair -- amortizing this pretraining cost across seeds is standard
-practice for this method, not a shortcut specific to this codebase):
-  1. Carve out a deterministic HOLDOUT_FRAC (default 10%) split of the training
-     set, seeded independently of --seed (SPLIT_SEED, fixed) so every seed of a
-     given (dataset, model) pair uses the exact same holdout split and IL model.
-  2. Train a model of the SAME architecture as the main run on that holdout
-     split alone, for IL_EPOCHS (short, by design: RHO-LOSS uses an
-     under-trained IL model on purpose, since a fully-converged IL model would
-     itself have near-zero loss on easy points and defeat the "irreducible"
-     estimate) using the same optimizer recipe as the main runs.
-  3. Forward the frozen IL model (eval mode, no augmentation -- deterministic
-     center transform, since the score needs to be a fixed per-instance number,
-     not something that jitters with a new random crop every epoch) over EVERY
-     instance in the training set and cache the resulting per-instance loss.
-  4. Save the cached losses and the holdout index set to --out_dir for train.py
-     to load. Also prints the pretraining's own backprop-instance cost, which
-     should be added on top of the main run's cum_backprop when reporting
-     RHO-LOSS's total compute cost (train.py's own accounting only covers the
-     main run, since this pretraining is shared/amortized across seeds).
-"""
 import argparse
 import os
 import time
