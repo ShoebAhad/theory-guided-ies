@@ -1,24 +1,4 @@
-"""Measured wall-clock, peak-memory, GPU-utilization, and energy comparison across
-baseline / ies_shipped / ies_alg1 / tgies on the primary setting (ResNet-18, CIFAR-10,
-SGD exponential-LR schedule, seed 0).
 
-Unlike flop_analysis.py (which recomputes FLOP savings analytically from existing
-results/*.csv logs, no new runs), this script launches short, freshly-instrumented
-training runs (train.py as a subprocess) because peak GPU memory, utilization, and
-power draw were never logged during the original 200-epoch runs and cannot be
-recovered after the fact. To keep this cheap on a shared GPU, each method runs for
-only a handful of epochs (enough for tgies to pass its recalibration point) rather
-than the full 200; wall-clock time, by contrast, does NOT need a new run -- it is
-aggregated from the real, already-completed 200-epoch results/*.csv logs (which do
-have a per-epoch epoch_time_s column), so the wall-clock numbers in the output table
-are from the actual full-length paper runs, not the short instrumented ones.
-
-GPU memory/utilization/power are sampled out-of-process via `nvidia-smi --query-gpu`
-polling (not torch.cuda.max_memory_allocated) so the numbers reflect true whole-process
-GPU usage and work even though this GPU is shared with another resident process --
-we report the delta over that process's idle baseline, sampled immediately before
-each run.
-"""
 import csv
 import glob
 import os
