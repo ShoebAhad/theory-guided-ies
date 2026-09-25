@@ -1,34 +1,3 @@
-"""Reviewer item 2 (P2, critical priority): thm:curvature decomposes the noiseless
-mastery signal as
-
-    Delta^2 L_i^(t) = eta_t * D_i^(t) + O(eta_t^2) + R_{i,t}
-    D_i^(t) := <g_i^(t-2), g^(t-2)> - <g_i^(t-1), g^(t-1)>
-
-but this was previously only checked INDIRECTLY, against the logged calibration record
-(sec:lrmechanism: delta/backprop-saved comparisons across schedules). This script
-instruments D_i^(t) DIRECTLY from drift_term_run.py's saved per-epoch inner products and
-checks the decomposition itself: does eta_t * D_i^(t) actually predict Delta^2 L_i^(t),
-and does the drift term dominate the leftover (curvature + remainder) term as the theorem
-claims it should at moderate eta?
-
-Inputs: results/drift_<tag>_{losses,inner,subset_idx,eta}.npy for tag in
-{exponential, fixed, Adam} (produced by drift_term_run.py, already run for this paper).
-
-Item #17 (added 2026-08-31, after drift_term_run.py was extended to also save
-||g_i^(t)|| and the 3 schedules rerun): thm:bridge's bound is
-    ||g_i^(t)|| <= (r_i/(1-r_i)) * sqrt(2*Lambda_i*Delta^2 L_i^(t))
-    Delta^2 L_i^(t) < delta  =>  ||g_i^(t)|| < eps_i(delta) := (r_i/(1-r_i))*sqrt(2*Lambda_i*delta)
-eps_i(delta) needs a per-instance decay rate r_i and smoothness constant Lambda_i that
-this paper does not estimate per-instance (doing so would need its own idealizations on
-top of ass:geometric/ass:smoothi). Rather than introduce those, we test the bound's
-*functional form* directly and cheaply: it predicts ||g_i^(t)|| scales with
-sqrt(|Delta^2 L_i^(t)|) (correlation/slope check, same style as analyze() above), and we
-report the practical calibration-bound question cor:bridgeprob is actually about --
-whether passing the paper's own calibrated mastery check (|Delta^2 L_i|<delta, using each
-schedule's own final calibrated delta from its tgies_..._seed0.csv) empirically
-corresponds to a smaller gradient norm than not passing it, not merely a positively
-correlated one.
-"""
 import os
 
 import matplotlib.pyplot as plt
