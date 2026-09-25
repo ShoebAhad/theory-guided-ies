@@ -1,23 +1,4 @@
-"""Reviewer item 18: does N=2 actually minimize empirical MSE among finite-difference
-orders on a REAL training trajectory, not just under the paper's idealized geometric+
-noise model (prop:mse)?
 
-Uses the existing results/noise_autocorr_losses.npy dump (50000 instances x 100 epochs,
-epochs 101-200 of the primary ResNet-18/CIFAR-10/SGD-exponential baseline run -- see
-noise_autocorrelation_run.py). No new GPU run needed.
-
-Method: for each order N in {1,2,3,4}, compute the N-th order finite difference of every
-instance's real loss trajectory at every valid t, and report empirical MSE(N) := mean
-over (instance, t) of Delta^N L_i^{(t)} squared. This is a direct, model-free estimate of
-the same quantity prop:mse bounds theoretically (signal^2 + C(2N,N) sigma^2), computed on
-real per-instance trajectories rather than the idealized geometric-decay model.
-
-sigma^2 is estimated once from the population of instances that are already near-zero
-loss for the full 100-epoch window (avg loss < NEAR_ZERO_THRESHOLD): for these, the
-"signal" term is ~0 by construction (already converged), so Var(Delta^2 L_i) directly
-estimates 6*sigma^2 (cor:threshold's own estimator, reused here as a sanity check rather
-than assumed).
-"""
 import os
 
 import math
