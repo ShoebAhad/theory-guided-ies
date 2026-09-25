@@ -1,19 +1,4 @@
-"""NEXT_STEPS.md item 7 [#20]: K*-sweep + trajectory-divergence instrumentation.
 
-Two things, both produced by run_kstar_trajectory.sh (train.py --tgies_fix_kstar K
---dump_traj_every 20), primary cell (ResNet-18/CIFAR-10/SGD-exponential), 3 seeds:
-
-1. Accuracy/savings vs K* in {1,2,4,8,15,30}, delta still self-calibrated (Cor. 4.5) --
-   a different question than sec:ablation's tab:ablation "K* only" row, which fixes
-   delta at IES(literal)'s strict constant. Here delta is always calibrated; only the
-   patience is fixed, isolating K*'s own effect on an otherwise-normal TG-IES run.
-
-2. Trajectory divergence: ||theta_TGIES^(t) - theta_baseline^(t)|| against a shared-seed
-   baseline reference (results/traj_dist_*.csv), every 20 epochs -- a direct empirical
-   probe of rem:shared-traj's open question (does the actual multi-removal trajectory
-   diverge from the idealized shared-reference trajectory thm:safe's certificate
-   assumes, and does it do so in a way consistent with K* changing the divergence rate).
-"""
 import csv
 import os
 import statistics
