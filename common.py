@@ -1,9 +1,4 @@
-"""Shared dataset/model/optimizer infrastructure for the IES / TG-IES comparison.
 
-Extracted from the original cifar_main.py (Yuan et al., IES, ICLR 2025) so that
-baseline / IES-as-shipped / IES-Algorithm-1-faithful / TG-IES all train on
-byte-identical data pipelines and models. Nothing here changes IES semantics.
-"""
 import math
 import os
 import random
