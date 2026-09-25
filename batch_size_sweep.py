@@ -1,14 +1,4 @@
-"""NEXT_STEPS.md item 10 [#14,#15]: batch-size sweep -- {32,64,128,256} x
-{baseline, ies_shipped, tgies}, short 8-epoch instrumented runs, reusing
-measure_efficiency.py's out-of-process nvidia-smi-polling pattern (peak memory,
-GPU utilization, power) since those numbers were never logged during ordinary
-training runs and cannot be recovered after the fact.
 
-This is about GPU memory/throughput/savings-rate behavior across batch size, not
-final accuracy -- 8 epochs is nowhere near enough for a meaningful accuracy
-comparison at any batch size, so accuracy is not reported here (see
-measure_efficiency.py / the primary cell's own 200-epoch runs for that).
-"""
 import csv
 import os
 import statistics
