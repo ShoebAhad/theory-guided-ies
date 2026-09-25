@@ -1,28 +1,4 @@
-"""Analyze noise_autocorr_losses.npy (from noise_autocorrelation_run.py) to check
-whether Assumption 3.4 (per-instance noise xi_{i,t} independent across t, Var=sigma^2)
-holds empirically, and quantify the correction to Var(Delta^2 xi)=6*sigma^2 (Cor. 4.5)
-if it does not.
 
-Detrending: each instance's 100-epoch late-training loss trajectory is detrended with
-an ordinary-least-squares LINEAR fit (not a moving average -- an early version of this
-script used a centered width-5 moving average, but that mechanically induces
-rho_1=-0.30, rho_2=-0.35 in the residuals of pure white noise by construction of the
-filter itself, verified analytically; this is comparable in magnitude to what we
-originally measured, i.e. the entire "signal" was a detrending artifact, not real
-autocorrelation, so we redid this with OLS linear detrending instead, whose own induced
-residual autocorrelation is O(1/T) = O(1/100), negligible at this window length).
-Lag-k autocorrelation is then estimated by pooling (xi_hat_{i,t}, xi_hat_{i,t+k}) pairs
-across ALL instances and valid t (not per-instance, which would be too short at n=100
-per instance to estimate reliably) -- a population-pooled ACF.
-
-Derivation used for the corrected variance (see paper Corollary 4.5 for the
-independent-noise case): Delta^2 xi_t = xi_t - 2*xi_{t-1} + xi_{t-2} has coefficients
-a=(1,-2,1) at lags (0,1,2). For a stationary noise process with autocorrelations
-rho_1, rho_2 (rho_0=1):
-    Var(Delta^2 xi) = sigma^2 * [ sum(a_i^2) + 2*sum_{i<j} a_i*a_j*rho_{|i-j|} ]
-                     = sigma^2 * [ 6 - 8*rho_1 + 2*rho_2 ]
-which reduces to the paper's 6*sigma^2 exactly when rho_1=rho_2=0 (Assumption 3.4).
-"""
 import os
 
 import matplotlib.pyplot as plt
