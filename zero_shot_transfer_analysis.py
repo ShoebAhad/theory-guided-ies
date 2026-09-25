@@ -1,16 +1,4 @@
-"""NEXT_STEPS.md item 6 [#9]: assemble the "zero-shot transfer" table -- TG-IES uses the
-same four fixed calibration constants (p_budget=0.3, tau=0.02, beta_test=1, gradient-
-norm-floor percentile=20th, sec:selfcalib-scope) across every dataset/architecture/
-optimizer cell in this paper, with no per-cell retuning. This script assembles one row
-per distinct (dataset, model, optimizer) cell directly from results/summary.csv (which
-train.py appends to after every run, so no separate aggregation step is needed), seed-
-averaging wherever more than one seed exists.
 
-Pure post-processing, no new GPU run -- but only meaningful once item 1's CIFAR-100 and
-DenseNet-121 backfills (to 3 seeds each) are complete, since the point of this table is
-that the SAME constants transfer without retuning across every cell in the paper's full
-matrix, not just the seed-averaged primary/secondary ones.
-"""
 import csv
 import os
 import statistics
