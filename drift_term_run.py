@@ -1,44 +1,4 @@
-"""Priority-2 diagnostic: directly instruments the drift term D_i^(t) from Theorem
-6.1's decomposition Delta^2 L_i = eta*D_i + O(eta^2) + R, rather than only checking its
-consequences indirectly against the calibration record (as sec:lrmechanism currently
-does). This was explicitly named as unverified/未 done in the paper's own Future Work
-list and flagged critical by review.
 
-D_i^(t) := <g_i^(t-2), g^(t-2)> - <g_i^(t-1), g^(t-1)>   (population/instance gradient
-inner products, evaluated at the FIXED post-epoch parameters theta^(t) for each t, not
-at intermediate mini-batch iterates).
-
-Trains ResNet-18/CIFAR-10 with method=baseline (no removal, so the trajectory this
-script instruments is theta^(t) as it would be for every method before any exclusion
-diverges it -- the same trajectory sec:lrmechanism's calibration-record analysis reads
-off of) under a given LR schedule. After each epoch's ordinary SGD updates finish
-(theta^(t) now fixed), two extra passes run at that frozen theta^(t), both in eval()
-mode (so BatchNorm uses running stats rather than per-batch stats, letting a
-batch-size-1 gradient be evaluated consistently with the population-gradient pass; a
-documented simplification relative to train.py's own train()-mode-everywhere
-convention, chosen here because eval mode is well-defined for a single instance and
-train.py's per-instance mastery-signal losses are not affected by this script):
-
-  1. A full-dataset gradient ACCUMULATION pass (batched forward+backward, no optimizer
-     step) giving the exact population gradient g^(t) = (1/N) sum_i g_i^(t), plus every
-     instance's loss L_i^(t) at theta^(t) (the same "consistent forward pass" this
-     paper's ies_alg1/tgies already use for their own mastery signal, reused here).
-  2. For a fixed random SUBSET of instances (--subset_size, default 300 -- the paper's
-     own reviewer-facing ask says "for a subset of training examples", not all N; doing
-     all 50k individually would be prohibitively slow), an individual batch-size-1
-     forward+backward pass giving g_i^(t) exactly, immediately dotted against g^(t) from
-     step 1 (kept only as a running scalar, not stored as a vector, to keep memory/disk
-     small) to give inner_i(t) := <g_i^(t), g^(t)>.
-
-Saves per-epoch: eta_t (results/drift_<tag>_eta.npy), every instance's L_i^(t)
-(results/drift_<tag>_losses.npy, N x epochs, reused from step 1 exactly as
-noise_autocorrelation_run.py already does), and the subset's inner_i(t)
-(results/drift_<tag>_inner.npy, subset_size x epochs) and ||g_i^(t)||
-(results/drift_<tag>_norms.npy, subset_size x epochs -- item #17's calibration-bound
-plot) plus the subset's global indices (results/drift_<tag>_subset_idx.npy). D_i^(t) and
-Delta^2 L_i^(t) are both derivable post-hoc from these (drift_term_analysis.py) without
-re-running training.
-"""
 import argparse
 import os
 import time
