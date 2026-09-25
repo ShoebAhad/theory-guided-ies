@@ -1,17 +1,4 @@
-"""Diagnostic run for validating Assumption 3.4 (time-independent per-instance noise).
 
-Trains ResNet-18/CIFAR-10 with the exact same recipe as the primary experiment
-(SGD, momentum 0.9, wd 5e-4, batch 64, lr 0.1 exp-decay 0.96/epoch, seed 0), but
-dumps every instance's per-epoch loss for epochs >= DUMP_FROM into a memmap
-array on disk, so noise_autocorrelation_analysis.py can check whether the
-per-instance noise xi_{i,t} is really independent across t (as Assumption 3.4
-requires) or autocorrelated (as SGD's overlapping-minibatch revisits would
-predict, per Remark 3.6's own caveat).
-
-This intentionally reuses train.py's baseline forward/backward code path
-(ce_none per-sample losses) rather than modifying train.py itself, to keep
-the already-validated training script untouched.
-"""
 import os
 import time
 
