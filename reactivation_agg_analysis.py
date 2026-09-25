@@ -1,18 +1,4 @@
-"""Analysis for the aggregate/population-level gradient-cancellation check
-(P0 items #2/#6, new app:aggregate section): does the excluded set's mean
-gradient ||mu_t|| = ||mean_i g_i|| sit far below the mean of individual norms
-mean_i ||g_i||, i.e. do excluded gradients partially cancel in the sum
-TG-IES's own update (eq:activegrad) actually uses?
 
-Reads results/reactivation_tgies_cifar10_resnet18_SGD_exponential_learning_rate_seed{0,1,2}_reactprobe2.csv
-(new agg_grad_norm column, see train.py's --reactivation_probe_every path) and the
-matching main training CSVs (for the exclusion fraction pi_t = total_excluded_now/N).
-
-Also computes the "aggregate certified exclusion horizon" K_safe^agg (cor:kstaragg)
-using the same tau, beta_test, eta_31 convention as the paper's existing tab:ksafe,
-for direct comparison against the per-instance K_safe (~1.2M) and the actual K*=15
-ceiling used everywhere in this paper.
-"""
 import os
 
 import matplotlib.pyplot as plt
