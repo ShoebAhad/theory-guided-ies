@@ -27,8 +27,8 @@ import numpy as np
 from scipy.stats import norm, rankdata
 
 RESULTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
-OUT_DIR = os.path.join(RESULTS_DIR, "rebuttal")
-FIG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "figures", "rebuttal")
+OUT_DIR = os.path.join(RESULTS_DIR, "offline")
+FIG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "figures", "offline")
 SCHEDS = ["exponential", "fixed", "Adam"]
 NOISE_MULT = {0: 1.0, 1: 2.0, 2: 6.0, 3: 20.0}
 PHI_INV_0625 = norm.ppf(0.625)
@@ -369,4 +369,10 @@ def main():
 
 
 if __name__ == "__main__":
+    import argparse
+    ap = argparse.ArgumentParser(description="CPU-only offline analyses on saved per-instance loss matrices")
+    ap.add_argument("--out_dir", default=OUT_DIR, help="where JSON summaries are written")
+    ap.add_argument("--fig_dir", default=FIG_DIR, help="where figures are written")
+    _a = ap.parse_args()
+    OUT_DIR, FIG_DIR = _a.out_dir, _a.fig_dir
     main()

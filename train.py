@@ -638,7 +638,7 @@ def main():
     kstar = args.min_kstar
     eps0 = None  # set on first self-calibration; stays None under --tgies_fix_kstar
 
-    # rebuttal state: a 4th history slot for --diff_order 3, a rolling window of observed
+    # extra state: a 4th history slot for --diff_order 3, a rolling window of observed
     # losses for --sigma_est temporal, and IES+'s per-instance |D^2 L| history
     L_prev3 = np.full(N, np.nan, dtype=np.float64)
     loss_win = np.full((N, args.sigma_window), np.nan, dtype=np.float64) \
@@ -704,7 +704,7 @@ def main():
         "warmup_epochs": args.warmup_epochs, "sb_beta": args.sb_beta,
         "imbalance_ratio": args.imbalance_ratio, "label_noise": args.label_noise,
     }
-    # rebuttal knobs join the fingerprint only when changed from their defaults, so
+    # newer options join the fingerprint only when changed from their defaults, so
     # checkpoints of the original configuration stay resumable
     for key, default in (("precalib", "ies"), ("sigma_est", "lowerhalf"), ("sigma_window", 10),
                          ("kstar_rule", "per_instance"), ("kstar_pfrac", 1.0),
