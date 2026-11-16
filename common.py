@@ -47,6 +47,85 @@ class CifarDataset(Dataset):
             img = self.transform(img)
         return img, target, true_idx
 
+    def get_global(self, true_idx):
+        """(transformed image, label) for a global sample id, independent of index_list."""
+        img = Image.fromarray(self.data[true_idx])
+        return (self.transform(img) if self.transform else img), self.labels[true_idx]
+
+
+class ImageListDataset(Dataset):
+    """Same (data, labels, index_list, transform) contract as CifarDataset, but `data`
+    is an array of image file paths decoded lazily -- used for ImageNet-100, where the
+    decoded training set does not fit in RAM. Returns (img, label, global_idx)."""
+
+    def __init__(self, data, labels, index_list, transform=None):
+        self.data = data
+        self.labels = labels
+        self.transform = transform
+        self.index_list = index_list
+
+    def __len__(self):
+        return len(self.index_list)
+
+    def _load(self, true_idx):
+        with open(self.data[true_idx], 'rb') as f:
+            img = Image.open(f).convert('RGB')
+        return self.transform(img) if self.transform else img
+
+    def __getitem__(self, idx):
+        true_idx = self.index_list[idx]
+        return self._load(true_idx), self.labels[true_idx], true_idx
+
+    def get_global(self, true_idx):
+        return self._load(true_idx), self.labels[true_idx]
+
+
+def get_imagenet100_dataset(root_dir, train_transform, test_transform):
+    """root_dir/{train,val}/<wnid>/*.JPEG with exactly the 100 classes of
+    imagenet100_classes.txt (CMC split), as produced by prepare_imagenet100.py.
+    Class index = position of the wnid in the sorted class list."""
+    exts = ('.jpeg', '.jpg', '.png')
+
+    def scan(split):
+        split_dir = os.path.join(root_dir, split)
+        wnids = sorted(d for d in os.listdir(split_dir) if os.path.isdir(os.path.join(split_dir, d)))
+        paths, labels = [], []
+        for c, wnid in enumerate(wnids):
+            cdir = os.path.join(split_dir, wnid)
+            for fn in sorted(os.listdir(cdir)):
+                if fn.lower().endswith(exts):
+                    paths.append(os.path.join(cdir, fn))
+                    labels.append(c)
+        return np.array(paths), np.array(labels, dtype=np.int64), wnids
+
+    tr_paths, tr_labels, tr_wnids = scan('train')
+    te_paths, te_labels, te_wnids = scan('val')
+    if tr_wnids != te_wnids or len(tr_wnids) != 100:
+        raise ValueError(f"expected the same 100 class folders in train/ and val/ under {root_dir}, "
+                         f"got {len(tr_wnids)} / {len(te_wnids)}")
+    train_dataset = ImageListDataset(tr_paths, tr_labels, list(range(len(tr_paths))), train_transform)
+    test_dataset = ImageListDataset(te_paths, te_labels, list(range(len(te_paths))), test_transform)
+    return train_dataset, test_dataset
+
+
+class TorchvisionResNet(nn.Module):
+    """Standard ImageNet-resolution torchvision ResNet exposing the (out, feat) contract
+    TG-IES's gradient-norm proxy needs (feat = pooled penultimate features)."""
+
+    def __init__(self, arch, num_classes):
+        super().__init__()
+        self.net = getattr(models, arch)(weights=None, num_classes=num_classes)
+
+    def forward(self, x, ret_feat=False):
+        n = self.net
+        x = n.maxpool(n.relu(n.bn1(n.conv1(x))))
+        x = n.layer4(n.layer3(n.layer2(n.layer1(x))))
+        feat = torch.flatten(n.avgpool(x), 1)
+        out = n.fc(feat)
+        if ret_feat:
+            return out, feat
+        return out
+
 
 class VGG16_CIFAR(nn.Module):
     def __init__(self, num_classes=10):
@@ -96,6 +175,73 @@ class DenseNet121_CIFAR(nn.Module):
         feat = nn.functional.relu(feat, inplace=True)
         feat = nn.functional.adaptive_avg_pool2d(feat, (1, 1)).flatten(1)
         out = self.model.classifier(feat)
+        if ret_feat:
+            return out, feat
+        return out
+
+
+class TokenDataset(Dataset):
+    """Text counterpart of CifarDataset: `data` is an (N, L) int array of token ids (0 = padding).
+    Same (data, labels, index_list, transform) contract; returns (ids, label, global_idx)."""
+
+    def __init__(self, data, labels, index_list, transform=None):
+        self.data = data
+        self.labels = labels
+        self.transform = transform          # unused (no text augmentation)
+        self.index_list = index_list
+
+    def __len__(self):
+        return len(self.index_list)
+
+    def __getitem__(self, idx):
+        true_idx = self.index_list[idx]
+        return torch.from_numpy(self.data[true_idx].astype(np.int64)), int(self.labels[true_idx]), true_idx
+
+    def get_global(self, true_idx):
+        return torch.from_numpy(self.data[true_idx].astype(np.int64)), int(self.labels[true_idx])
+
+
+def get_agnews_dataset(root_dir):
+    """AG News tokenized by prepare_agnews.py."""
+    z = np.load(os.path.join(root_dir, "agnews_L64.npz"))
+    tr = TokenDataset(z["x_train"], z["y_train"].copy(), list(range(len(z["y_train"]))))
+    te = TokenDataset(z["x_test"], z["y_test"].copy(), list(range(len(z["y_test"]))))
+    return tr, te
+
+
+class TextTransformer(nn.Module):
+    """Text twin of ViT_CIFAR (same blocks, width, depth, heads): token + learned position embeddings,
+    a CLS token, 6 pre-norm layers of width 192, padding masked in attention. Trained from scratch.
+    `forward(ids, ret_feat=True)` returns (logits, CLS feature) like every other model here."""
+
+    def __init__(self, num_classes=4, vocab_size=30522, max_len=64, dim=192, depth=6, heads=3,
+                 mlp_ratio=4.0, dropout=0.1):
+        super().__init__()
+        self.tok_embed = nn.Embedding(vocab_size, dim, padding_idx=0)
+        self.cls_token = nn.Parameter(torch.zeros(1, 1, dim))
+        self.pos_embed = nn.Parameter(torch.zeros(1, max_len + 1, dim))
+        self.pos_drop = nn.Dropout(dropout)
+        self.blocks = nn.ModuleList([ViTBlock(dim, heads, int(dim * mlp_ratio), dropout) for _ in range(depth)])
+        self.norm = nn.LayerNorm(dim)
+        self.head = nn.Linear(dim, num_classes)
+        nn.init.trunc_normal_(self.pos_embed, std=0.02)
+        nn.init.trunc_normal_(self.cls_token, std=0.02)
+        self.apply(ViT_CIFAR._init_weights)
+        nn.init.trunc_normal_(self.tok_embed.weight, std=0.02)
+        with torch.no_grad():
+            self.tok_embed.weight[0].zero_()
+
+    def forward(self, ids, ret_feat=False):
+        B = ids.size(0)
+        pad = torch.cat([torch.zeros(B, 1, dtype=torch.bool, device=ids.device), ids == 0], dim=1)
+        x = torch.cat([self.cls_token.expand(B, -1, -1), self.tok_embed(ids)], dim=1)
+        x = self.pos_drop(x + self.pos_embed[:, :x.size(1)])
+        for blk in self.blocks:
+            h = blk.norm1(x)
+            x = x + blk.attn(h, h, h, key_padding_mask=pad, need_weights=False)[0]
+            x = x + blk.mlp(blk.norm2(x))
+        feat = self.norm(x)[:, 0]
+        out = self.head(feat)
         if ret_feat:
             return out, feat
         return out
@@ -231,6 +377,12 @@ def get_model(model_name, num_classes):
         return DenseNet121_CIFAR(num_classes)
     elif model_name == "vit_tiny_cifar":
         return ViT_CIFAR(num_classes)
+    elif model_name == "transformer_tiny_text":
+        return TextTransformer(num_classes)
+    elif model_name == "resnet18_imagenet":
+        return TorchvisionResNet("resnet18", num_classes)
+    elif model_name == "resnet50_imagenet":
+        return TorchvisionResNet("resnet50", num_classes)
     else:
         raise ValueError(f"Unsupported model: {model_name}")
 
@@ -253,8 +405,12 @@ def get_optimizer_and_scheduler(optimizer_name, model_parameters, args):
         optimizer = optim.SGD(model_parameters, lr=0.1, momentum=args.momentum, weight_decay=args.weight_decay)
         scheduler = lr_scheduler.LinearLR(optimizer, start_factor=1, end_factor=0.01, total_iters=150)
     elif optimizer_name == "SGD_exponential_learning_rate":
-        optimizer = optim.SGD(model_parameters, lr=0.1, momentum=args.momentum, weight_decay=args.weight_decay)
-        scheduler = lr_scheduler.ExponentialLR(optimizer, gamma=0.96)
+        # --lr / --exp_gamma overrides exist for shorter runs and ImageNet-100; the defaults
+        # (0.1, 0.96) are the CIFAR recipe every reported 200-epoch run used.
+        lr0 = getattr(args, "lr", None) or 0.1
+        gamma = getattr(args, "exp_gamma", None) or 0.96
+        optimizer = optim.SGD(model_parameters, lr=lr0, momentum=args.momentum, weight_decay=args.weight_decay)
+        scheduler = lr_scheduler.ExponentialLR(optimizer, gamma=gamma)
     elif optimizer_name == "SGD_step_learning_rate":
         # standard CIFAR step-decay recipe: 10x drops at 30/60/90% of training (60/120/180 of 200 epochs)
         optimizer = optim.SGD(model_parameters, lr=0.1, momentum=args.momentum, weight_decay=args.weight_decay)
